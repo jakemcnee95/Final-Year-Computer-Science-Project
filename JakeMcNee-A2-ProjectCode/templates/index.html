@@ -1,0 +1,50 @@
+<html>
+<head>
+
+    <script src="https://www.gstatic.com/firebasejs/5.0.2/firebase.js"></script>
+    <script>
+        // Initialize Firebase
+        let config = {
+            apiKey: "AIzaSyDxnzTFBAMHLu9GAyDqGd5DctZ-hFDs6oA",
+            authDomain: "compsciproject-1dacd.firebaseapp.com",
+            databaseURL: "https://compsciproject-1dacd.firebaseio.com",
+            projectId: "compsciproject-1dacd",
+            storageBucket: "compsciproject-1dacd.appspot.com",
+            messagingSenderId: "887968300100"
+        };
+        firebase.initializeApp(config);
+
+        function isValid(){
+            let ref = firebase.database().ref("/");
+            let usersChild = ref.child("users");
+            let value = document.getElementById("myId").value;
+            usersChild.on("value", function(snap){
+                snap.forEach(function (childNode){
+                    if (childNode.val().Email === value ) {
+                        let currId = childNode.val().Player_ID;
+                        window.location.href = "index_table.html"+"#"+currId;
+                    }
+
+            });
+        });
+
+        }
+    </script>
+
+</head>
+
+<style>
+    body{
+    background-color: skyblue;
+    }
+</style>
+
+<body>
+<h1>Welcome to the probabilistic footy competition!</h1>
+<h2>Players please enter your email address to sign in!</h2>
+    Email Address
+    <input type="text" id="myId" value="sams@me.com"/>
+    <button type="submit" id="myValue" onclick="isValid()">Submit</button>
+
+</body>
+</html>

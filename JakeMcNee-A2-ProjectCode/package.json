@@ -1,0 +1,28 @@
+{
+  "name": "project_code",
+  "version": "1.0.0",
+  "description": "project_code",
+  "main": "server.js",
+  "scripts": {
+    "test": "entry",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github"
+  },
+  "keywords": [
+    "predictive",
+    "sports"
+  ],
+  "author": "Jake McNee",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.3",
+    "firebase-admin": "^5.12.1",
+    "mathjs-simple-integral": "^0.1.1",
+    "socket.io": "^2.1.0",
+    "socketio-file-upload": "^0.6.0",
+    "xlsx": "^0.12.9"
+  }
+}

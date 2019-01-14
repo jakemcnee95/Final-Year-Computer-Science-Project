@@ -1,0 +1,353 @@
+<html>
+<head>
+    <script src="https://www.gstatic.com/firebasejs/5.0.2/firebase.js"></script>
+    <script>
+        // Initialize Firebase
+        let config = {
+            apiKey: "AIzaSyDxnzTFBAMHLu9GAyDqGd5DctZ-hFDs6oA",
+            authDomain: "compsciproject-1dacd.firebaseapp.com",
+            databaseURL: "https://compsciproject-1dacd.firebaseio.com",
+            projectId: "compsciproject-1dacd",
+            storageBucket: "compsciproject-1dacd.appspot.com",
+            messagingSenderId: "887968300100"
+        };
+        firebase.initializeApp(config);
+
+
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+    <script>
+
+        let socket = io.connect();
+
+        // body on load function, only loads once page in refreshed
+        function rounds(){
+            // get player id from url and append to top of page
+            let playerID = window.location.hash.substring(1);
+            let title = document.createElement("h1");
+            let text = document.createTextNode("Hi, player ID: "+playerID+"\n");
+            title.appendChild(text);
+            document.getElementById("title").appendChild(title);
+
+            //get currentRound, numUsers and find out if all users have tipped
+            let numUsersTipped = 0;
+            let ref = firebase.database().ref("/");
+            let gameChild = ref.child("gameData");
+            gameChild.once("value", function(snapshot) {
+                let numUsers = snapshot.child("numUsers").val();
+                let numTeams = snapshot.child("numTeams").val()[0];
+                let currentRound = parseInt(snapshot.child("currentRound").val());
+                if (snapshot.child("usersTipped")) {
+                    let newChild = snapshot.child("usersTipped");
+                    newChild.forEach(function () {
+                        numUsersTipped += 1;
+                    });
+                    if (numUsersTipped === numUsers) {
+                        gameChild.child("usersTipped").remove();
+                        gameChild.update({"currentRound": [currentRound + 1]});
+                        //updateResults(currentRound, numTeams, numUsers);
+                        currentRound += 1;
+                    }
+                }
+
+
+            // Code for the round tabs and current round for title
+            let roundTab = document.getElementById("roundTab");
+                let roundText = document.createTextNode("Current Round: "+currentRound.toString());
+                title.appendChild(roundText);
+
+
+
+                // Create buttons for round tabs
+                for (let i = 0; i < currentRound; i++){
+                    let btn = document.createElement("Button");
+                    let text = document.createTextNode("Rd"+(i+1));
+                    btn.appendChild(text);
+                    roundTab.appendChild(btn);
+                    btn.setAttribute("id", "Round"+(i+1)+"d");
+                    btn.setAttribute("onClick", "generate_table("+(i+1)+","+playerID+","+currentRound+")");
+                }
+            })
+        }
+
+
+        // generates table based on games and players
+        function generate_table(roundNum, playerID, currentRound) {
+            // removes start "select a round"
+            if (document.getElementById("onStart")){
+                let removeOnStart = document.getElementById("onStart");
+                removeOnStart.parentNode.removeChild(removeOnStart)
+            }
+
+            // Initialise firebase references
+            let ref = firebase.database().ref("/");
+            let usersChild = ref.child("users");
+            let fixtureChild = ref.child("fixtures/Round"+roundNum);
+            let gameDataChild = ref.child("gameData");
+
+            // clear old table
+            if (document.getElementById("myTable")){
+                let removeTable = document.getElementById("myTable");
+                removeTable.parentNode.removeChild(removeTable)
+            }
+
+            // get the reference for the body
+            let body = document.getElementsByTagName("body")[0];
+
+            // creates a <table> element and a <tbody> element
+            let tbl = document.createElement("table");
+            let tblBody = document.createElement("tbody");
+            gameDataChild.once("value", function (snapGame) {
+                usersChild.once("value", function (snapUser) {
+                    fixtureChild.once("value", function (snapFixture) {
+                        let numGames = snapGame.val().numTeams[0]/2;
+                        let numUsers = snapGame.val().numUsers;
+                        // making the default table
+                        for (let i = 0; i <numUsers+1; i++ ){
+                            let row = document.createElement("tr");
+                            for (let j = 0; j < numGames +3; j++) {
+                                let cell = document.createElement("td");
+                                let cellText = document.createTextNode("");
+                                cell.appendChild(cellText);
+                                row.appendChild(cell);
+                            }
+                            tblBody.appendChild(row);
+                        }
+                        // put the <tbody> in the <table>
+                        tbl.appendChild(tblBody);
+                        // appends <table> into <body>
+                        body.appendChild(tbl);
+                        // sets the border attribute of tbl to 2;
+                        tbl.setAttribute("border", "1");
+                        // set table id to myTable
+                        tbl.setAttribute("id", "myTable");
+
+                        // inserting firebase data
+                        // players
+                        let i = 1;
+                        snapUser.forEach(function (userChild) {
+                            let currCell = document.getElementById("myTable");
+                            currCell.rows[i].cells[0].innerHTML = (userChild.val().First_Name + " " + userChild.val().Last_Name + " " + userChild.val().Player_ID);
+                            i ++
+                        });
+
+                        // matches
+                        let j = 1;
+                        snapFixture.forEach(function (fixtureChild) {
+                            let currCell = document.getElementById("myTable");
+                            currCell.rows[0].cells[j].innerHTML = (fixtureChild.val().Team.bold() + " vs " + fixtureChild.val().Opponent);
+                            j ++
+                        });
+
+                        document.getElementById("myTable").rows[0].cells[numGames+1].innerHTML = 'This Round';
+                        document.getElementById("myTable").rows[0].cells[numGames+2].innerHTML = 'Total';
+
+                        // checks if player has tipped already
+                        let playerHasTipped = false;
+                        let numUsersTipped = 0;
+                        if (snapGame.child("usersTipped")){
+                            let newChild = snapGame.child("usersTipped");
+                            newChild.forEach(function(children){
+                                numUsersTipped += 1;
+                                if (parseInt(children.key) === playerID){
+                                    playerHasTipped = true;
+
+                                }
+                            });
+                        }
+
+                        // Check if we at end of rounds
+                        let ref = firebase.database().ref("/");
+                        let gameChild = ref.child("gameData");
+                        gameChild.once("value", function(snapshot) {
+                            let numRounds = snapshot.val().numRounds[0];
+                            let numTeams = snapshot.val().numTeams[0];
+                            if (numRounds < currentRound) {
+                                let table = document.getElementById("myTable");
+                                let maxScore = 0;
+                                let currWinner = 0;
+                                for (let i = 1; i < numUsers; i++) {
+                                    let currentValue = parseFloat(table.rows[i].cells[numTeams / 2 + 2].innerHTML);
+                                    if (currentValue > maxScore) {
+                                        maxScore = currentValue;
+                                        currWinner = i;
+                                    }
+                                }
+                                alert("NO MORE ROUNDS, The winner is PlayerID: " + currWinner)
+                            }
+                        });
+
+                        if (roundNum === currentRound && !playerHasTipped){ // round is current and player has not tipped
+                            // create inputs for client
+                            createInputs(numGames, playerID, i, roundNum);
+                            }
+                        updateScoreValues(roundNum);
+
+                    })
+                })
+            })
+        }
+
+
+        // If user hasn't tipped, create their input boxes
+        function createInputs(numGames, playerID, i, roundNum) {
+            let lastElement = 0;
+            for (i = 1; i < numGames + 1; i++) {
+                let inputCellLocation = document.getElementById("myTable").rows[playerID].cells[i];
+                let inputCell = document.createElement("Input");
+                let subButton = document.createElement("Button");
+
+                inputCell.setAttribute("Id", "inputCell" + playerID + i);
+                inputCell.setAttribute("type", "text");
+                subButton.setAttribute("type", "submit");
+                subButton.innerHTML = "Submit";
+                subButton.setAttribute("onClick", "setValue(" + playerID + "," + i + "," + roundNum + ")");
+
+                inputCellLocation.appendChild(inputCell);
+                inputCellLocation.appendChild(subButton);
+                lastElement = i
+            }
+            // final submit button
+            let submitButtonLocation = document.getElementById("myTable").rows[playerID].cells[lastElement+1];
+            let alphaSubButton = document.createElement("button");
+            alphaSubButton.setAttribute("type", "submit");
+            alphaSubButton.innerHTML = "Submit Tips";
+            alphaSubButton.setAttribute("onClick", "submitTips(" + playerID + "," + numGames + "," + roundNum + ")");
+            submitButtonLocation.appendChild(alphaSubButton)
+        }
+
+        // checks if value enter is valid, and changes box to that value once submit is clicked
+        function setValue(playerID, i, roundNum){
+            let ref = firebase.database().ref("/");
+            let scoreChild = ref.child("scores/round"+roundNum);
+            // check if value between 0 and 1
+            let inputLocation = document.getElementById("inputCell"+playerID+i);
+            let inputValue = inputLocation.value;
+
+                if (inputValue >= 0.001 && inputValue <= 0.999) {
+                    inputValue = 1 + Math.log(inputValue)/Math.log(2);
+                    inputValue = parseFloat(inputValue).toFixed(3);
+
+                    let inputTextBox = document.createTextNode(inputValue);
+
+                    // remove what was in the cell before
+                    let location = document.getElementById("myTable").rows[playerID].cells[i];
+                    while (location.hasChildNodes()) {
+                        location.removeChild(location.lastChild);
+                    }
+                    // updates database new value
+                    //location.appendChild(inputTextBox);
+                    location.innerHTML = inputValue;
+                    scoreChild.update({[playerID+","+i]: [inputValue]})
+                }
+                else {
+                    alert("Value must be a number in-between 0 and 1")
+                }
+
+        }
+
+        // final submit button, makes all empty values 0.5 and updates database
+        function submitTips(playerID, numGames, roundNum){
+            let roundTotal = 0;
+            let ref = firebase.database().ref("/");
+            let scoreChild = ref.child("scores/round"+roundNum);
+            for (let i = 1; i < numGames +1; i++){
+
+                let inputValue = document.getElementById("myTable").rows[playerID].cells[i].innerHTML;
+                //let inputLocation = document.getElementById("inputCell"+playerID+i);
+                //let inputValue = inputLocation.value;
+
+                if (!(inputValue < 1 && inputValue > -9)){
+                    inputValue = 0;
+                }
+                inputValue = parseFloat(inputValue);
+                roundTotal += inputValue;
+
+                let inputTextBox = document.createTextNode(inputValue);
+
+                let location = document.getElementById("myTable").rows[playerID].cells[i];
+                while (location.hasChildNodes()) {
+                    location.removeChild(location.lastChild);
+                }
+                location.appendChild(inputTextBox);
+                scoreChild.update({[playerID+","+i]: [inputValue]})
+            }
+            //update roundTotal
+            let roundTotalLocation = document.getElementById("myTable").rows[playerID].cells[numGames+1];
+            while (roundTotalLocation.hasChildNodes()) {
+                roundTotalLocation.removeChild(roundTotalLocation.lastChild);
+            }
+            roundTotalLocation.innerHTML = parseFloat(roundTotal).toFixed(3);
+            scoreChild.update({[playerID+","+(numGames+1)]: [roundTotalLocation.innerHTML]});
+            // lets firebase know player has finished tipping for this round
+            let gameChild = ref.child("gameData/usersTipped");
+            gameChild.update({[playerID]: "yes"})
+
+            // code for total score
+            let TotalLocation = document.getElementById("myTable").rows[playerID].cells[numGames+2];
+
+            if (roundNum === 1){
+                TotalLocation.innerHTML = parseFloat(roundTotal).toFixed(3);
+                scoreChild.update({[playerID+","+(numGames+2)]: [TotalLocation.innerHTML]});
+            } else { // Past round 1
+                let prevRound = roundNum-1;
+                let scoreChild = ref.child("scores/round"+prevRound);
+                scoreChild.once("value", function(snapScore){
+                    let snapChild = snapScore.child(playerID+","+(numGames+2)).val()[0];
+                    let totalValue = parseFloat(snapChild) + parseFloat(roundTotal);
+
+                    TotalLocation.innerHTML = totalValue;
+                    let scoreChild = ref.child("scores/round"+roundNum);
+                    scoreChild.update({[playerID+","+(numGames+2)]: [totalValue]});
+                })
+            }
+            }
+
+
+
+
+
+
+        // Updates all values on table to reflect the firebase
+        function updateScoreValues(roundNum){
+            let currTable = document.getElementById("myTable");
+            let ref = firebase.database().ref("/");
+            let scoreChild = ref.child("scores/round"+roundNum);
+            scoreChild.on("value", function(snap) {
+                snap.forEach(function(childNode){
+                    let row = childNode.key.split(',')[0];
+                    let col = childNode.key.split(',')[1];
+                    currTable.rows[row].cells[col].innerHTML = childNode.val();
+                });
+            })
+        }
+
+
+
+    </script>
+
+    <style>
+        tbody td{
+            padding: 30px;
+            color: black;
+        }
+
+        tbody tr:nth-child(odd){
+            background-color: #4C8BF5;
+            color: #fff;
+        }
+
+         body{
+             background-color: skyblue;
+         }
+
+    </style>
+</head>
+
+<body onload="rounds()">
+<div id="title"></div>
+<h2 id="onStart">Please select round</h2>
+<h3>Tips entered are the probability of the bold team being victorious</h3>
+<div id="roundTab"></div>
+</body>
+</html>
