@@ -1,0 +1,15 @@
+Steps to run program (commands in bold are required to be run)
+
+Unzip folder and save ’JakeMcNee-A2-ProjectCode’ in a directory of your choosing.
+Use terminal/command prompt to reach directory and run the following npm commands INDIVIDUALLY to install node modules.
+
+npm install express –save; 
+npm install socketio –save; 
+npm install xlsx –save; 
+npm install firebase-admin –save
+
+Once modules installed, use this command to begin server. node app.js
+This will begin running the server, go onto a web browser and type in the following localhost:8000
+Now you are on the client page, enter in a user email, an example one is there for you to click on
+Otherwise in (*rootDirectory* > inputDocuments > simulatedDatabase) there is a list of user information and any email can be used.
+Once logged in, you can enter your tips.
